@@ -1,0 +1,4 @@
+build/
+cmake-toolchain-files/
+CMakePresets.json
+.vscode/
