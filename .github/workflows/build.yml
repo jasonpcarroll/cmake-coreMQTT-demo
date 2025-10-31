@@ -1,0 +1,116 @@
+name: Build Demos
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  generate-matrix-ubuntu:
+    name: Generate Build Matrix for Ubuntu
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch presets
+        run: cmake -P fetch_presets.cmake
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          presets=$(cmake --list-presets | grep -o '"[^"]*"' | tr -d '"' | jq -R -s -c 'split("\n")[:-1]')
+          matrix=$(echo "$presets" | jq -c --arg os "ubuntu-latest" '[.[] | {"os": $os, "preset": .}]')
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+  build-ubuntu:
+    name: Build ${{ matrix.preset }} on Ubuntu
+    needs: generate-matrix-ubuntu
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix-ubuntu.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch presets
+        run: cmake -P fetch_presets.cmake
+      - name: Build with preset
+        run: |
+          cmake --preset ${{ matrix.preset }}
+          cmake --build --preset ${{ matrix.preset }}
+      - name: List binary directory
+        if: always()
+        shell: bash
+        run: ls -la build/${{ matrix.preset }}
+
+  generate-matrix-windows:
+    name: Generate Build Matrix for Windows
+    runs-on: windows-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch presets
+        run: cmake -P fetch_presets.cmake
+      - name: Generate matrix
+        id: set-matrix
+        shell: bash
+        run: |
+          presets=$(cmake --list-presets | grep -o '"[^"]*"' | tr -d '"' | jq -R -s -c 'split("\n")[:-1]')
+          matrix=$(echo "$presets" | jq -c --arg os "windows-latest" '[.[] | {"os": $os, "preset": .}]')
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+  build-windows:
+    name: Build ${{ matrix.preset }} on Windows
+    needs: generate-matrix-windows
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix-windows.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch presets
+        run: cmake -P fetch_presets.cmake
+      - name: Build with preset
+        run: |
+          cmake --preset ${{ matrix.preset }}
+          cmake --build --preset ${{ matrix.preset }}
+      - name: List binary directory
+        if: always()
+        shell: bash
+        run: ls -la build/${{ matrix.preset }}
+
+  generate-matrix-macos:
+    name: Generate Build Matrix for macOS
+    runs-on: macos-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch presets
+        run: cmake -P fetch_presets.cmake
+      - name: Generate matrix
+        id: set-matrix
+        run: |
+          presets=$(cmake --list-presets | grep -o '"[^"]*"' | tr -d '"' | jq -R -s -c 'split("\n")[:-1]')
+          matrix=$(echo "$presets" | jq -c --arg os "macos-latest" '[.[] | {"os": $os, "preset": .}]')
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+
+  build-macos:
+    name: Build ${{ matrix.preset }} on macOS
+    needs: generate-matrix-macos
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        include: ${{ fromJson(needs.generate-matrix-macos.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch presets
+        run: cmake -P fetch_presets.cmake
+      - name: Build with preset
+        run: |
+          cmake --preset ${{ matrix.preset }}
+          cmake --build --preset ${{ matrix.preset }}
+      - name: List binary directory
+        if: always()
+        shell: bash
+        run: ls -la build/${{ matrix.preset }}

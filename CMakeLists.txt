@@ -43,6 +43,20 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(core_mqtt)
 
+# FreeRTOS-Kernel (gives freertos_kernel target) #
+
+FetchContent_Declare(
+  freertos_kernel
+  GIT_REPOSITORY https://github.com/jasonpcarroll/FreeRTOS-Kernel.git
+  GIT_TAG main
+  GIT_PROGRESS TRUE)
+
+FetchContent_MakeAvailable(freertos_kernel)
+
+target_link_libraries(logging_freertos PUBLIC freertos_kernel)
+target_link_libraries(core_mqtt PUBLIC logging_freertos)
+
+
 # ------------------------------------------------------------------------------
 # Targets
 # ------------------------------------------------------------------------------
