@@ -1,1 +1,1 @@
-# supported-targets-hub
+# CMake coreMQTT Demo
