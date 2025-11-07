@@ -56,6 +56,9 @@ FetchContent_MakeAvailable(freertos_kernel)
 target_link_libraries(logging_freertos PUBLIC freertos_kernel)
 target_link_libraries(core_mqtt PUBLIC logging_freertos)
 
+target_link_libraries(tls_transport PUBLIC core_mqtt)
+target_link_libraries(plaintext_transport PUBLIC core_mqtt)
+
 
 # ------------------------------------------------------------------------------
 # Targets
