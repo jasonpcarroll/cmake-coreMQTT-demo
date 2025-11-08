@@ -1,91 +1,108 @@
-#include "core_mqtt.h"
 #include "logging_levels.h"
 
-#ifndef LIBRARY_LOG_LEVEL
-    #define LIBRARY_LOG_LEVEL    LOG_DEBUG
-#endif
+#define LIBRARY_LOG_LEVEL    LOG_DEBUG
 
 #include "logging_stack.h"
 
-static uint8_t buffer[ 1024 ];
+#include "core_mqtt.h"
+#include "transport.h"
 
-struct NetworkContext
-{
-    int not_used;
-};
+#include <strings.h>
 
-
-static int32_t transportSend( NetworkContext_t * pNetworkContext,
-                              const void * pBuffer,
-                              size_t bytesToSend )
-{
-    ( void ) pNetworkContext;
-    ( void ) pBuffer;
-    ( void ) bytesToSend;
-
-    LogInfo( ( "Transport send called with %zu bytes", bytesToSend ) );
-    return 0;
-}
-
-static int32_t transportRecv( NetworkContext_t * pNetworkContext,
-                              void * pBuffer,
-                              size_t bytesToRecv )
-{
-    ( void ) pNetworkContext;
-    ( void ) pBuffer;
-    ( void ) bytesToRecv;
-
-    LogInfo( ( "Transport recv called for %zu bytes", bytesToRecv ) );
-    return 0;
-}
+static uint8_t ucMQTTFixedBuffer[ 1024 ];
 
 static uint32_t getCurrentTime( void )
 {
     return 0;
 }
 
-void userCallback(struct MQTTContext *pContext, struct MQTTPacketInfo *pPacketInfo, struct MQTTDeserializedInfo *pDeserializedInfo)
+void userCallback( struct MQTTContext * pContext,
+                   struct MQTTPacketInfo * pPacketInfo,
+                   struct MQTTDeserializedInfo * pDeserializedInfo )
 {
-    return;
 }
 
 int main( void )
 {
-    MQTTContext_t mqttContext;
-    TransportInterface_t transport;
-    MQTTFixedBuffer_t networkBuffer;
-    MQTTStatus_t mqttStatus;
+    MQTTContext_t xMQTTContext = { 0 };
+    MQTTFixedBuffer_t xMQTTFixedBuffer = { 0 };
+    MQTTConnectInfo_t xMQTTConnectInfo = { 0 };
+    MQTTStatus_t xMQTTStatus;
+    bool xSessionPresent = false;
+    NetworkContext_t xNetworkContext = { 0 };
+    TransportInterface_t xTransportInterface = { 0 };
+    TransportCredentials_t xTransportCredentials = { 0 };
+    TransportStatus_t xTransportStatus;
+    ServerInfo_t xServerInfo = { 0 };
+
+    /* Setup the MQTT connections buffer. */
+    xMQTTFixedBuffer.pBuffer = ucMQTTFixedBuffer;
+    xMQTTFixedBuffer.size = sizeof( ucMQTTFixedBuffer );
+
+    /* Setup the MQTT connect info. */
+    xMQTTConnectInfo.cleanSession = true;
+    xMQTTConnectInfo.pClientIdentifier = "test";
+    xMQTTConnectInfo.clientIdentifierLength = strlen( "test" );
+    xMQTTConnectInfo.keepAliveSeconds = 30;
+
+    /* Setup transport interface. */
+    xTransportInterface.pNetworkContext = &xNetworkContext;
+    xTransportInterface.recv = Transport_Recv;
+    xTransportInterface.send = Transport_Send;
+    xTransportInterface.writev = NULL;
+
+    /* Setup connection credentials. */
+    xTransportCredentials.pClientCert = CLIENT_CERT;
+    xTransportCredentials.pPrivateKey = PRIVATE_KEY;
+    xTransportCredentials.pRootCa = ROOT_CA;
+    xTransportCredentials.sniHostName = MQTT_BROKER_ENDPOINT;
+
+    /* Setup server info. */
+    xServerInfo.pHostName = "broker.hivemq.com";
+    xServerInfo.hostNameLength = strlen( "broker.hivemq.com" );
+    xServerInfo.port = 1883;
 
     vLoggingInit();
 
     LogInfo( ( "Starting coreMQTT demo..." ) );
 
-    /* Setup transport interface */
-    transport.pNetworkContext = NULL;
-    transport.send = transportSend;
-    transport.recv = transportRecv;
-
-    /* Setup network buffer */
-    networkBuffer.pBuffer = buffer;
-    networkBuffer.size = sizeof( buffer );
-
     /* Initialize MQTT context */
-    mqttStatus = MQTT_Init( &mqttContext, &transport, getCurrentTime, userCallback, &networkBuffer );
+    xMQTTStatus = MQTT_Init( &xMQTTContext, &xTransportInterface, getCurrentTime, userCallback, &xMQTTFixedBuffer );
 
-    if( mqttStatus == MQTTSuccess )
+    if( xMQTTStatus == MQTTSuccess )
     {
         LogInfo( ( "MQTT context initialized successfully" ) );
     }
     else
     {
-        LogInfo( ( "Failed to initialize MQTT context: %d", mqttStatus ) );
+        LogInfo( ( "Failed to initialize MQTT context: %d", xMQTTStatus ) );
     }
 
-    return 0;
+    xTransportStatus = Transport_Connect( &xNetworkContext, &xServerInfo, &xTransportCredentials, 1000, 1000 );
+
+    if( xTransportStatus == TRANSPORT_SUCCESS )
+    {
+        LogInfo( ( "Connection established." ) );
+    }
+    else
+    {
+        LogInfo( ( "Failed to establish connection." ) );
+    }
+
+    xMQTTStatus = MQTT_Connect( &xMQTTContext, &xMQTTConnectInfo, NULL, 1000, &xSessionPresent );
+
+    if( xMQTTStatus == MQTTSuccess )
+    {
+        LogInfo( ( "MQTT connection established." ) );
+    }
+    else
+    {
+        LogInfo( ( "Failed to connect: %d", xMQTTStatus ) );
+    }
 }
 
 
-
+/* TO REMOVE */
 #include "FreeRTOS.h"
 #include "task.h"
 
