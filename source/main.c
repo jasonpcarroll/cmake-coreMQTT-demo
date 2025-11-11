@@ -6,15 +6,11 @@
 
 #include "core_mqtt.h"
 #include "transport.h"
+#include "clock.h"
 
 #include <strings.h>
 
 static uint8_t ucMQTTFixedBuffer[ 1024 ];
-
-static uint32_t getCurrentTime( void )
-{
-    return 0;
-}
 
 void userCallback( struct MQTTContext * pContext,
                    struct MQTTPacketInfo * pPacketInfo,
@@ -41,8 +37,10 @@ int main( void )
 
     /* Setup the MQTT connect info. */
     xMQTTConnectInfo.cleanSession = true;
-    xMQTTConnectInfo.pClientIdentifier = "test";
-    xMQTTConnectInfo.clientIdentifierLength = strlen( "test" );
+    xMQTTConnectInfo.pClientIdentifier = THING_NAME;
+    xMQTTConnectInfo.clientIdentifierLength = strlen( THING_NAME );
+
+    LogInfo( ( THING_NAME ) );
     xMQTTConnectInfo.keepAliveSeconds = 30;
 
     /* Setup transport interface. */
@@ -58,16 +56,16 @@ int main( void )
     xTransportCredentials.sniHostName = MQTT_BROKER_ENDPOINT;
 
     /* Setup server info. */
-    xServerInfo.pHostName = "broker.hivemq.com";
-    xServerInfo.hostNameLength = strlen( "broker.hivemq.com" );
-    xServerInfo.port = 1883;
+    xServerInfo.pHostName = MQTT_BROKER_ENDPOINT;
+    xServerInfo.hostNameLength = strlen( MQTT_BROKER_ENDPOINT );
+    xServerInfo.port = 8883;
 
     vLoggingInit();
 
     LogInfo( ( "Starting coreMQTT demo..." ) );
 
     /* Initialize MQTT context */
-    xMQTTStatus = MQTT_Init( &xMQTTContext, &xTransportInterface, getCurrentTime, userCallback, &xMQTTFixedBuffer );
+    xMQTTStatus = MQTT_Init( &xMQTTContext, &xTransportInterface, Clock_GetTimeMs, userCallback, &xMQTTFixedBuffer );
 
     if( xMQTTStatus == MQTTSuccess )
     {
@@ -89,16 +87,62 @@ int main( void )
         LogInfo( ( "Failed to establish connection." ) );
     }
 
-    xMQTTStatus = MQTT_Connect( &xMQTTContext, &xMQTTConnectInfo, NULL, 1000, &xSessionPresent );
+    do
+    {
+        xMQTTStatus = MQTT_Connect( &xMQTTContext, &xMQTTConnectInfo, NULL, 10000, &xSessionPresent );
 
-    if( xMQTTStatus == MQTTSuccess )
+        if( xMQTTStatus == MQTTSuccess )
+        {
+            LogInfo( ( "MQTT connection established." ) );
+        }
+        else
+        {
+            LogInfo( ( "Failed to connect: %d", xMQTTStatus ) );
+        }
+    } while( xMQTTStatus != MQTTSuccess );
+
+    char pcSendBuffer[ 1000 ];
+    snprintf( pcSendBuffer, 1000,
+              "["
+              "{"
+              "\"label\" : \"Random\","
+              "\"display_type\" : \"line_graph\","
+              "\"values\" :"
+              "["
+              "{"
+              "\"unit\" : \"Number\","
+              "\"value\" : %d,"
+              "\"label\" : \"\""
+              "}"
+              "]"
+              "}"
+              "]", 2 );
+    MQTTPublishInfo_t xPubInfo = { 0 };
+
+    xPubInfo.qos = MQTTQoS0;
+    xPubInfo.pTopicName = THING_NAME;
+    xPubInfo.topicNameLength = strlen( THING_NAME );
+    xPubInfo.pPayload = pcSendBuffer;
+    xPubInfo.payloadLength = strlen( pcSendBuffer );
+
+    while( 1 )
     {
-        LogInfo( ( "MQTT connection established." ) );
+        xMQTTStatus = MQTT_Publish( &xMQTTContext, &xPubInfo, MQTT_GetPacketId( &xMQTTContext ) );
+
+        if( xMQTTStatus == MQTTSuccess )
+        {
+            LogInfo( ( "MQTT publish successful." ) );
+        }
+        else
+        {
+            LogInfo( ( "Failed to connect: %d", xMQTTStatus ) );
+        }
+
+        Clock_SleepMs( 1000 );
     }
-    else
-    {
-        LogInfo( ( "Failed to connect: %d", xMQTTStatus ) );
-    }
+
+    MQTT_Disconnect( &xMQTTContext );
+    Transport_Disconnect( &xNetworkContext );
 }
 
 

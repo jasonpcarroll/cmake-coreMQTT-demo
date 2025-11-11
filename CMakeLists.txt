@@ -72,7 +72,7 @@ add_executable(coremqtt_demo ${COREMQTT_DEMO_SOURCES})
 
 target_include_directories(coremqtt_demo PUBLIC ${COREMQTT_DEMO_INCLUDE_DIRS})
 
-target_link_libraries(coremqtt_demo PUBLIC core_mqtt transport)
+target_link_libraries(coremqtt_demo PUBLIC core_mqtt transport clock)
 
 if(TARGET board_support_package)
   target_link_libraries(coremqtt_demo PUBLIC board_support_package)
@@ -95,6 +95,8 @@ message("AWS_API_ENDPOINT: ${AWS_API_ENDPOINT}")
 
 string(RANDOM LENGTH 32 THING_NAME)
 
+message("THING NAME: ${THING_NAME}")
+
 execute_process(
   COMMAND openssl req -nodes -newkey rsa:2048 -keyout qc_private_key.key -out
           signing_request.csr -subj "/CN=${THING_NAME}"
@@ -115,4 +117,4 @@ file(WRITE "${CMAKE_BINARY_DIR}/qc_cert.crt" "${CERT}")
 
 file(DOWNLOAD https://www.amazontrust.com/repository/AmazonRootCA1.pem "${CMAKE_BINARY_DIR}/AmazonRootCA1.pem")
 
-target_compile_definitions(coremqtt_demo PUBLIC CLIENT_CERT="${CMAKE_BINARY_DIR}/qc_cert.crt" PRIVATE_KEY="${CMAKE_BINARY_DIR}/qc_private_key.key" ROOT_CA="${CMAKE_BINARY_DIR}/AmazonRootCA1.pem" MQTT_BROKER_ENDPOINT="${AWS_IOT_ENDPOINT}")
+target_compile_definitions(coremqtt_demo PUBLIC CLIENT_CERT="${CMAKE_BINARY_DIR}/qc_cert.crt" PRIVATE_KEY="${CMAKE_BINARY_DIR}/qc_private_key.key" ROOT_CA="${CMAKE_BINARY_DIR}/AmazonRootCA1.pem" MQTT_BROKER_ENDPOINT="${AWS_IOT_ENDPOINT}" THING_NAME="${THING_NAME}")
