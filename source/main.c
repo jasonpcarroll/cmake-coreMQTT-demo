@@ -76,19 +76,19 @@ int main( void )
         LogInfo( ( "Failed to initialize MQTT context: %d", xMQTTStatus ) );
     }
 
-    xTransportStatus = Transport_Connect( &xNetworkContext, &xServerInfo, &xTransportCredentials, 1000, 1000 );
-
-    if( xTransportStatus == TRANSPORT_SUCCESS )
-    {
-        LogInfo( ( "Connection established." ) );
-    }
-    else
-    {
-        LogInfo( ( "Failed to establish connection." ) );
-    }
-
     do
     {
+        xTransportStatus = Transport_Connect( &xNetworkContext, &xServerInfo, &xTransportCredentials, 1000, 1000 );
+
+        if( xTransportStatus == TRANSPORT_SUCCESS )
+        {
+            LogInfo( ( "Connection established." ) );
+        }
+        else
+        {
+            LogInfo( ( "Failed to establish connection." ) );
+        }
+
         xMQTTStatus = MQTT_Connect( &xMQTTContext, &xMQTTConnectInfo, NULL, 10000, &xSessionPresent );
 
         if( xMQTTStatus == MQTTSuccess )
